@@ -22,13 +22,22 @@ class MongoDBConnection(ExperimentalBaseConnection[pymongo.collection.Collection
     
     def query(self, collection: str, ttl: int = 3600, **kwargs):
         @cache_data(ttl=ttl)
-        def _query(**kwargs):
-            col = self.collection(collection=collection)    # Collection
-            filt = kwargs.get("filter", {})                 # Filter
-            proj = kwargs.get("projection", {})             # Projection
-            df = pd.DataFrame(list(col.find(filt, proj)))   # Results DF
+        def _query(args_str: str, **kwargs):
+            col = self.collection(collection)
+            df = pd.DataFrame(list(col.find(**kwargs)))
             return df.set_index("_id")
-        return _query(**kwargs)
+        
+        args_str = collection+str(sorted(kwargs))
+        return _query(args_str, **kwargs)
+    
+    def distinct(self, collection: str, fields: str, ttl: int = 3600, **kwargs):
+        @cache_data(ttl=ttl)
+        def _distinct(args_str: str, **kwargs):
+            col = self.collection(collection)
+            return list(col.distinct(fields, **kwargs))
+        
+        args_str = collection+fields+str(sorted(kwargs))
+        return _distinct(args_str, **kwargs)
     
 class SpotifyConnection(ExperimentalBaseConnection[None]):
     pass
