@@ -67,7 +67,7 @@ match st.session_state.state:
 
         filtered_charts = charts.loc[(charts["am_genre"].isin(selected_genres)) & (charts["decade"].isin(selected_decades))]
 
-        "Our dataset contains over 8000 songs! We recommend selecting just a few genres from a decade that you're familiar with."
+        st.markdown("Our dataset contains over 8000 songs! We recommend selecting just a few genres from a decade that you're familiar with.")
 
         if st.button("New game", type="primary", disabled=not selected_genres, use_container_width=True):        
             
