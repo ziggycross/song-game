@@ -120,17 +120,9 @@ match st.session_state.state:
             for i, (artist, track_id) in artists.reset_index(drop=True).iterrows():
                 with columns[i]:
                     artist_id = sp.get_song_artist(track_id)
-                    artist_image = sp.get_artist_image(artist_id)
+                    artist_image = sp.get_artist_image(artist_id, quality=2)
                     st.image(artist_image)
                     st.button(artist, key=score+i+1, on_click=check, use_container_width=True, args=(artist, answer))
-            # with columns[0]:
-            # with columns[1]:
-            #     st.text(sp.artist(artist_id)["images"][0]["url"])
-            #     st.image(sp.artist(artist_id)["images"][0]["url"])
-            #     st.button(artists[1], key=score+2, on_click=check, use_container_width=True, args=(artists[1], answer))
-            # with columns[2]:
-            #     st.image(sp.artist(artist_id)["images"][0]["url"])
-            #     st.button(artists[2], key=score+3, on_click=check, use_container_width=True, args=(artists[2], answer))
 
     case "game_over":
         base_score = st.session_state.score
