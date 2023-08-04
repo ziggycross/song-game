@@ -4,6 +4,9 @@ import pandas as pd
 
 import regex as re
 
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+
 # SESSION VARIABLES
 max_lives = 3
 
@@ -95,7 +98,10 @@ match st.session_state.state:
 
         song = selection["song"][0]
         answer = selection["artist"][0]
-        artists = selection["artist"].sample(frac=1)
+        artists = selection[["artist", "id"]].sample(frac=1)
+
+
+        sp = st.experimental_connection("spotify", SpotifyConnection)
 
         with question_box.container():
             st.subheader(f"Score = {score}")
@@ -105,12 +111,20 @@ match st.session_state.state:
             st.text(f"Who wrote '{song}'?")
             
             columns = st.columns(3)
-            with columns[0]:
-                st.button(artists[0], key=score+1, on_click=check, use_container_width=True, args=(artists[0], answer))
-            with columns[1]:
-                st.button(artists[1], key=score+2, on_click=check, use_container_width=True, args=(artists[1], answer))
-            with columns[2]:
-                st.button(artists[2], key=score+3, on_click=check, use_container_width=True, args=(artists[2], answer))
+            for i, (artist, track_id) in artists.reset_index(drop=True).iterrows():
+                with columns[i]:
+                    artist_id = sp.get_song_artist(track_id)
+                    artist_image = sp.get_artist_image(artist_id)
+                    st.image(artist_image)
+                    st.button(artist, key=score+i+1, on_click=check, use_container_width=True, args=(artist, answer))
+            # with columns[0]:
+            # with columns[1]:
+            #     st.text(sp.artist(artist_id)["images"][0]["url"])
+            #     st.image(sp.artist(artist_id)["images"][0]["url"])
+            #     st.button(artists[1], key=score+2, on_click=check, use_container_width=True, args=(artists[1], answer))
+            # with columns[2]:
+            #     st.image(sp.artist(artist_id)["images"][0]["url"])
+            #     st.button(artists[2], key=score+3, on_click=check, use_container_width=True, args=(artists[2], answer))
 
     case "game_over":
         st.title(f"You scored {st.session_state.score}")

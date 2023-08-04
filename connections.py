@@ -7,6 +7,9 @@ from pymongo.server_api import ServerApi
 from streamlit.connections import ExperimentalBaseConnection
 from streamlit.runtime.caching import cache_data
 
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+
 class MongoDBConnection(ExperimentalBaseConnection[pymongo.collection.Collection]):
 
     def _connect(self, **kwargs) -> pymongo.collection.Collection:
@@ -50,5 +53,20 @@ class MongoDBConnection(ExperimentalBaseConnection[pymongo.collection.Collection
         args_str = f"{collection}{pipeline}{sorted(kwargs)}"
         return _aggregate(args_str, **kwargs)
     
-class SpotifyConnection(ExperimentalBaseConnection[None]):
-    pass
+class SpotifyConnection(ExperimentalBaseConnection[spotipy.client.Spotify]):
+    
+    def _connect(self, **kwargs) -> spotipy.client.Spotify:
+        client_id      = kwargs.pop("id") if "id" in kwargs else self._secrets["id"]
+        client_secret  = kwargs.pop("secret") if "secret" in kwargs else self._secrets["secret"]
+        credentials = SpotifyClientCredentials(client_id=client_id, client_secret=client_secret)
+        return spotipy.Spotify(client_credentials_manager=credentials)
+    
+    def client(self):
+        return self._instance
+    
+    def get_song_artist(self, track: str):
+        return self.client().track(f"spotify:track:{track}")["artists"][0]["id"]
+
+    def get_artist_image(self, artist: str):
+        return self.client().artist(artist)["images"][0]["url"]
+
