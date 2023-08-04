@@ -27,7 +27,7 @@ class MongoDBConnection(ExperimentalBaseConnection[pymongo.collection.Collection
             df = pd.DataFrame(list(col.find(**kwargs)))
             return df.set_index("_id")
         
-        args_str = collection+str(sorted(kwargs))
+        args_str = f"{collection}{sorted(kwargs)}"
         return _query(args_str, **kwargs)
     
     def distinct(self, collection: str, fields: str, ttl: int = 3600, **kwargs):
@@ -36,8 +36,19 @@ class MongoDBConnection(ExperimentalBaseConnection[pymongo.collection.Collection
             col = self.collection(collection)
             return list(col.distinct(fields, **kwargs))
         
-        args_str = collection+fields+str(sorted(kwargs))
+        args_str = f"{collection}{fields}{sorted(kwargs)}"
         return _distinct(args_str, **kwargs)
+    
+    def aggregate(self, collection: str, pipeline: list, ttl: int = 3600, **kwargs):
+        @cache_data(ttl=ttl)
+        def _aggregate(args_str: str, **kwargs):
+            col = self.collection(collection)
+            agg = list(col.aggregate(pipeline, **kwargs))
+            df = pd.DataFrame([item["_id"] for item in agg])
+            return df
+        
+        args_str = f"{collection}{pipeline}{sorted(kwargs)}"
+        return _aggregate(args_str, **kwargs)
     
 class SpotifyConnection(ExperimentalBaseConnection[None]):
     pass
