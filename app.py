@@ -55,67 +55,66 @@ Test your music knowledge in this song challenge!
 
 st.divider()
 
-if st.session_state.state == "waiting":
+match st.session_state.state:
+    case "waiting":
     
-    # Get year range
-    start_year, end_year = st.select_slider("Decades", options=decades, value=("70", "10"), format_func=year_format)
-    selected_decades = decades[decades.index(start_year): decades.index(end_year)+1]
-    # Get genres available in those years
-    year_genres = charts.loc[charts["decade"].isin(selected_decades)]["am_genre"].unique()
-    selected_genres = st.multiselect("Genres", year_genres)
-    
-    filtered_charts = charts.loc[(charts["am_genre"].isin(selected_genres)) & (charts["decade"].isin(selected_decades))]
+        # Get year range
+        start_year, end_year = st.select_slider("Decades", options=decades, value=("70", "10"), format_func=year_format)
+        selected_decades = decades[decades.index(start_year): decades.index(end_year)+1]
+        # Get genres available in those years
+        year_genres = charts.loc[charts["decade"].isin(selected_decades)]["am_genre"].unique()
+        selected_genres = st.multiselect("Genres", year_genres)
 
-    "Our dataset contains over 8000 songs! We recommend selecting just a few genres from a decade that you're familiar with."
+        filtered_charts = charts.loc[(charts["am_genre"].isin(selected_genres)) & (charts["decade"].isin(selected_decades))]
 
-    if st.button("New game", type="primary", disabled=not selected_genres, use_container_width=True):        
-        
-        data = musicgen.query(
-            "musicgen",
-            filter={"chart_name": {"$in": list(filtered_charts["chart_name"])}},
-            projection={"song": 1, "artist": 1, "chart_name": 1, "id": 1}
-            )
-        
-        st.toast(f"Found {data.shape[0]} songs!")
-        st.session_state.data = data
+        "Our dataset contains over 8000 songs! We recommend selecting just a few genres from a decade that you're familiar with."
 
-        st.session_state.state = "playing"
-        st.session_state.score = 0
-        st.session_state.lives = max_lives
-        
-        st.experimental_rerun()
+        if st.button("New game", type="primary", disabled=not selected_genres, use_container_width=True):        
+            
+            data = musicgen.query(
+                "musicgen",
+                filter={"chart_name": {"$in": list(filtered_charts["chart_name"])}},
+                projection={"song": 1, "artist": 1, "chart_name": 1, "id": 1}
+                )
+            
+            st.toast(f"Found {data.shape[0]} songs!")
+            st.session_state.data = data
 
-                
+            st.session_state.state = "playing"
+            st.session_state.score = 0
+            st.session_state.lives = max_lives
+            
+            st.experimental_rerun()
 
-elif st.session_state.state == "playing":
-    question_box = st.empty()
-    lives = st.session_state.lives
-    score = st.session_state.score
+    case "playing":
+        question_box = st.empty()
+        lives = st.session_state.lives
+        score = st.session_state.score
 
-    selection = st.session_state.data.sample(3)
+        selection = st.session_state.data.sample(3)
 
-    song = selection["song"][0]
-    answer = selection["artist"][0]
-    artists = selection["artist"].sample(frac=1)
+        song = selection["song"][0]
+        answer = selection["artist"][0]
+        artists = selection["artist"].sample(frac=1)
 
-    with question_box.container():
-        st.subheader(f"Score = {score}")
+        with question_box.container():
+            st.subheader(f"Score = {score}")
 
-        lives_bar = st.progress(lives/max_lives, f"Lives = {lives}")
+            lives_bar = st.progress(lives/max_lives, f"Lives = {lives}")
 
-        st.text(f"Who wrote '{song}'?")
-        
-        columns = st.columns(3)
-        with columns[0]:
-            st.button(artists[0], key=score+1, on_click=check, use_container_width=True, args=(artists[0], answer))
-        with columns[1]:
-            st.button(artists[1], key=score+2, on_click=check, use_container_width=True, args=(artists[1], answer))
-        with columns[2]:
-            st.button(artists[2], key=score+3, on_click=check, use_container_width=True, args=(artists[2], answer))
+            st.text(f"Who wrote '{song}'?")
+            
+            columns = st.columns(3)
+            with columns[0]:
+                st.button(artists[0], key=score+1, on_click=check, use_container_width=True, args=(artists[0], answer))
+            with columns[1]:
+                st.button(artists[1], key=score+2, on_click=check, use_container_width=True, args=(artists[1], answer))
+            with columns[2]:
+                st.button(artists[2], key=score+3, on_click=check, use_container_width=True, args=(artists[2], answer))
 
-elif st.session_state.state == "game_over":
-    st.title(f"You scored {st.session_state.score}")
+    case "game_over":
+        st.title(f"You scored {st.session_state.score}")
 
-    if st.button("Play again", type="primary", use_container_width=True):
-        st.session_state.state = "waiting"
-        st.experimental_rerun()
+        if st.button("Play again", type="primary", use_container_width=True):
+            st.session_state.state = "waiting"
+            st.experimental_rerun()
