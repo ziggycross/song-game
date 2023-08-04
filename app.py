@@ -55,7 +55,7 @@ charts["decade"] = charts["chart_name"].str.extract(r"(\d{2})[sS]")
 decades = sorted(charts["decade"].unique(), key = year_format)
 
 # GAME INTERFACE
-st.title("Streamlit Song Challenge")
+st.title("🎸 Streamlit Song Game ⚡")
 """
 Test your music knowledge in this song challenge!
 """
