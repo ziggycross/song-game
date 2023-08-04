@@ -9,19 +9,23 @@ from spotipy.oauth2 import SpotifyClientCredentials
 
 # SESSION VARIABLES
 max_lives = 3
+correct_answer_score = 100
+genres_modifier = 0.25
+decades_modifier = 0.1
 
 if "state" not in st.session_state: st.session_state.state = "waiting"
 if "score" not in st.session_state: st.session_state.score = 0
 if "lives" not in st.session_state: st.session_state.lives = max_lives
 
 if "genres" not in st.session_state: st.session_state.genres = None
+if "genres" not in st.session_state: st.session_state.decades = None
 if "data" not in st.session_state: st.session_state.data = None
 
 # FUNCTIONS
 def check(guess, correct):
     if guess == correct:
         st.toast("Correct!")
-        st.session_state.score += 1
+        st.session_state.score += correct_answer_score
     
     elif st.session_state.lives > 1:
         st.toast("Incorrect!")
@@ -81,6 +85,8 @@ match st.session_state.state:
                 )
             
             st.toast(f"Found {data.shape[0]} songs!")
+            st.session_state.genres = selected_genres
+            st.session_state.decades = selected_decades
             st.session_state.data = data
 
             st.session_state.state = "playing"
@@ -127,7 +133,30 @@ match st.session_state.state:
             #     st.button(artists[2], key=score+3, on_click=check, use_container_width=True, args=(artists[2], answer))
 
     case "game_over":
-        st.title(f"You scored {st.session_state.score}")
+        base_score = st.session_state.score
+
+        genres_multiplier = genres_modifier*len(st.session_state.genres)
+        genres_bonus = int(base_score*genres_multiplier)
+        
+        decades_multiplier = decades_modifier*len(st.session_state.decades)
+        decades_bonus = int(base_score*decades_multiplier)
+
+        final_score = base_score+genres_bonus+decades_bonus
+        
+        st.markdown(
+            f"""
+            # Final score: {final_score}
+
+            *{" + ".join(st.session_state.genres)} from {" to ".join(map(year_format, st.session_state.decades))}*
+            
+            **Base score:** `{base_score}`  
+            
+            **Genres multiplier:** `{1+genres_multiplier}x`  
+            **Genres bonues:** `{genres_bonus}`  
+            
+            **Decades multiplier:** `{1+decades_multiplier}x`  
+            **Decades bonues:** `{decades_bonus}`  
+            """)
 
         if st.button("Play again", type="primary", use_container_width=True):
             st.session_state.state = "waiting"
