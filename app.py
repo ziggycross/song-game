@@ -70,7 +70,8 @@ match st.session_state.state:
         selected_decades = decades[decades.index(start_year): decades.index(end_year)+1]
         # Get genres available in those years
         year_genres = charts.loc[charts["decade"].isin(selected_decades)]["am_genre"].unique()
-        selected_genres = st.multiselect("Genres", sorted(year_genres))
+        selected_genres = st.multiselect("Genres", sorted(year_genres), default=[g for g in st.session_state.genres if g in year_genres])
+        st.session_state.genres = selected_genres
 
         filtered_charts = charts.loc[(charts["am_genre"].isin(selected_genres)) & (charts["decade"].isin(selected_decades))]
 
