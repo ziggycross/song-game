@@ -52,6 +52,16 @@ class MongoDBConnection(ExperimentalBaseConnection[pymongo.collection.Collection
         
         args_str = f"{collection}{pipeline}{sorted(kwargs)}"
         return _aggregate(args_str, **kwargs)
+
+    def insert(self, collection: str, document: dict | list, **kwargs):
+        col = self.collection(collection)
+        match document:
+            case dict():
+                return col.insert_one(document, **kwargs)
+            case list():
+                return col.inset_many(document, **kwargs)
+            case _:
+                raise TypeError
     
 class SpotifyConnection(ExperimentalBaseConnection[spotipy.client.Spotify]):
     

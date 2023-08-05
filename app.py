@@ -1,4 +1,6 @@
 from connections import MongoDBConnection, SpotifyConnection
+from datetime import datetime
+
 import streamlit as st
 import pandas as pd
 
@@ -20,6 +22,8 @@ if "lives" not in st.session_state: st.session_state.lives = max_lives
 if "genres" not in st.session_state: st.session_state.genres = None
 if "genres" not in st.session_state: st.session_state.decades = None
 if "data" not in st.session_state: st.session_state.data = None
+
+if "name" not in st.session_state: st.session_state.name = "anon"
 
 # FUNCTIONS
 def check(guess, correct):
@@ -78,6 +82,10 @@ match st.session_state.state:
         filtered_charts = charts.loc[(charts["am_genre"].isin(selected_genres)) & (charts["decade"].isin(selected_decades))]
 
         st.markdown("Our dataset contains over 8000 songs! We recommend selecting just a few genres from a decade that you're familiar with.")
+
+        st.divider()
+
+        st.session_state.name = st.text_input("Leaderboard name", placeholder="Leave blank to play anonymously")
 
         st.divider()
 
@@ -166,6 +174,15 @@ match st.session_state.state:
             """)
         
         st.divider()
+
+        musicgen.insert("leaderboard", {
+            "name": st.session_state.name,
+            "score": final_score,
+            "genres": st.session_state.genres,
+            "decades": st.session_state.decades,
+            "time": datetime.now()
+            })
+
 
         if st.button("Play again", type="primary", use_container_width=True):
             st.session_state.state = "waiting"
