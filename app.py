@@ -79,6 +79,8 @@ match st.session_state.state:
 
         st.markdown("Our dataset contains over 8000 songs! We recommend selecting just a few genres from a decade that you're familiar with.")
 
+        st.divider()
+
         if st.button("New game", type="primary", disabled=not selected_genres, use_container_width=True):        
             
             data = musicgen.query(
@@ -105,13 +107,12 @@ match st.session_state.state:
 
         selection = st.session_state.data.sample(3)
 
+        sp = st.experimental_connection("spotify", SpotifyConnection)
+        
         song = selection["song"][0]
         song_id = selection["id"][0]
         answer = selection["artist"][0]
         artists = selection[["artist", "id"]].sample(frac=1)
-
-        sp = st.experimental_connection("spotify", SpotifyConnection)
-
         with question_box.container():
             st.subheader(f"Score = {score}")
 
@@ -130,9 +131,10 @@ match st.session_state.state:
             
             columns = st.columns(3)
             for i, (artist, track_id) in artists.reset_index(drop=True).iterrows():
+                artist_id = sp.get_song_artist(track_id)
+                artist_image = sp.get_artist_image(artist_id, quality=3)
+
                 with columns[i]:
-                    artist_id = sp.get_song_artist(track_id)
-                    artist_image = sp.get_artist_image(artist_id, quality=3)
                     st.image(artist_image)
                     st.button(artist, key=score+i+1, on_click=check, use_container_width=True, args=(artist, answer))
 
