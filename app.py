@@ -23,7 +23,7 @@ if "genres" not in st.session_state: st.session_state.genres = None
 if "genres" not in st.session_state: st.session_state.decades = None
 if "data" not in st.session_state: st.session_state.data = None
 
-if "name" not in st.session_state: st.session_state.name = "anon"
+if "name" not in st.session_state: st.session_state.name = ""
 
 # FUNCTIONS
 def check(guess, correct):
@@ -87,7 +87,7 @@ match st.session_state.state:
 
         st.divider()
 
-        st.session_state.name = st.text_input("Leaderboard name", placeholder="Leave blank to play anonymously")
+        name = st.text_input("Leaderboard name", placeholder="Leave blank to play anonymously", value=st.session_state.name)
 
         st.divider()
 
@@ -107,6 +107,8 @@ match st.session_state.state:
             st.session_state.state = "playing"
             st.session_state.score = 0
             st.session_state.lives = max_lives
+            
+            st.session_state.name = name
             
             st.experimental_rerun()
 
