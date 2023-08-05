@@ -20,7 +20,7 @@ if "score" not in st.session_state: st.session_state.score = 0
 if "lives" not in st.session_state: st.session_state.lives = max_lives
 
 if "genres" not in st.session_state: st.session_state.genres = None
-if "genres" not in st.session_state: st.session_state.decades = None
+if "genres" not in st.session_state: st.session_state.decades = ["70", "80", "90", "00", "10"]
 if "data" not in st.session_state: st.session_state.data = None
 
 if "name" not in st.session_state: st.session_state.name = ""
@@ -70,24 +70,38 @@ st.divider()
 
 match st.session_state.state:
     case "waiting":
-    
-        # Get year range
-        start_year, end_year = st.select_slider("Decades", options=decades, value=("70", "10"), format_func=year_format)
-        selected_decades = decades[decades.index(start_year): decades.index(end_year)+1]
-        # Get genres available in those years
-        year_genres = charts.loc[charts["decade"].isin(selected_decades)]["am_genre"].unique()
-        if st.session_state.genres is not None:
-            st.session_state.genres = [g for g in st.session_state.genres if g in year_genres]
-        selected_genres = st.multiselect("Genres", sorted(year_genres), default=st.session_state.genres)
-        st.session_state.genres = selected_genres
+        
+        presets, custom = st.columns(2)
 
-        filtered_charts = charts.loc[(charts["am_genre"].isin(selected_genres)) & (charts["decade"].isin(selected_decades))]
+        with presets:
+            top_modes = musicgen.aggregate(
+                "leaderboard", [
+                    {"$group": {"_id": "$mode", "count": {"$sum": 1}}},
+                    {"$sort": {"count": -1}},
+                    {"$limit": 10}
+                ]).reset_index()
 
-        st.markdown("Our dataset contains over 8000 songs! We recommend selecting just a few genres from a decade that you're familiar with.")
+            st.markdown(f"### Most popular:  \n"+"  \n".join([f"- {mode} *({count} plays)*" for i, (mode, count) in top_modes.iterrows()]))
 
-        st.divider()
 
-        name = st.text_input("Leaderboard name", placeholder="Leave blank to play anonymously", value=st.session_state.name)
+        with custom:
+            # Get year range
+            start_year, end_year = st.select_slider("Decades", options=decades, value=(st.session_state.decades[0], st.session_state.decades[-1]), format_func=year_format)
+            selected_decades = decades[decades.index(start_year): decades.index(end_year)+1]
+            # Get genres available in those years
+            year_genres = charts.loc[charts["decade"].isin(selected_decades)]["am_genre"].unique()
+            if st.session_state.genres is not None:
+                st.session_state.genres = [g for g in st.session_state.genres if g in year_genres]
+            selected_genres = st.multiselect("Genres", sorted(year_genres), default=st.session_state.genres)
+            st.session_state.genres = selected_genres
+
+            filtered_charts = charts.loc[(charts["am_genre"].isin(selected_genres)) & (charts["decade"].isin(selected_decades))]
+
+            st.markdown("Our dataset contains over 8000 songs! We recommend selecting just a few genres from a decade that you're familiar with.")
+
+            st.divider()
+
+            name = st.text_input("Leaderboard name", placeholder="Leave blank to play anonymously", value=st.session_state.name)
 
         st.divider()
 
@@ -189,9 +203,9 @@ match st.session_state.state:
                 "time": datetime.now()
                 })
         
-        leaderboard_tabs = st.tabs([mode, "Personal", "Weekly", "All"])
+        lb_mode, lb_personal, lb_weekly, lb_all = st.tabs([mode, "Personal", "Weekly", "All"])
 
-        with leaderboard_tabs[0]:
+        with lb_mode:
 
             try:
                 leaderboard = musicgen.aggregate(
@@ -216,7 +230,7 @@ match st.session_state.state:
                         ]))
         
 
-        with leaderboard_tabs[1]:
+        with lb_personal:
 
             try:
                 leaderboard = musicgen.aggregate(
@@ -241,7 +255,7 @@ match st.session_state.state:
                         ]))
                     
 
-        with leaderboard_tabs[2]:
+        with lb_weekly:
 
             try:
                 leaderboard = musicgen.aggregate(
@@ -266,7 +280,7 @@ match st.session_state.state:
                         ]))
         
 
-        with leaderboard_tabs[3]:
+        with lb_all:
 
             leaderboard = musicgen.aggregate(
                 "leaderboard", [
