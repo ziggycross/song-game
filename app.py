@@ -20,7 +20,7 @@ if "score" not in st.session_state: st.session_state.score = 0
 if "lives" not in st.session_state: st.session_state.lives = max_lives
 
 if "genres" not in st.session_state: st.session_state.genres = None
-if "genres" not in st.session_state: st.session_state.decades = ["70", "80", "90", "00", "10"]
+if "decades" not in st.session_state: st.session_state.decades = ["70", "80", "90", "00", "10"]
 if "data" not in st.session_state: st.session_state.data = None
 
 if "name" not in st.session_state: st.session_state.name = ""
