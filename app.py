@@ -123,7 +123,7 @@ match st.session_state.state:
 
             preview = sp.get_song_preview(song_id)
             if preview:
-                st.audio(sp.get_song_preview(song_id), format="audio/mp3")
+                st.audio(preview, format="audio/mp3")
             else:
                 st.markdown("*(No preview available for this track)*")
 
@@ -160,7 +160,10 @@ match st.session_state.state:
             
             **Decades multiplier:** `{1+decades_multiplier}x`  
             **Decades bonues:** `{decades_bonus}`  
+
             """)
+        
+        st.divider()
 
         if st.button("Play again", type="primary", use_container_width=True):
             st.session_state.state = "waiting"

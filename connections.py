@@ -63,13 +63,25 @@ class SpotifyConnection(ExperimentalBaseConnection[spotipy.client.Spotify]):
     
     def client(self):
         return self._instance
+
+    def track(self, track_id: str, ttl: int = 3600):
+        @cache_data(ttl=ttl)
+        def _track(track_id):
+            return self.client().track(track_id)
+        return _track(track_id)
+    
+    def artist(self, artist_id: str, ttl: int = 3600):
+        @cache_data(ttl=ttl)
+        def _artist(artist_id):
+            return self.client().artist(artist_id)
+        return _artist(artist_id)
     
     def get_song_artist(self, track: str):
-        return self.client().track(f"spotify:track:{track}")["artists"][0]["id"]
+        return self.track(track)["artists"][0]["id"]
 
     def get_song_preview(self, track: str):
-        return self.client().track(f"spotify:track:{track}")["preview_url"]
+        return self.track(track)["preview_url"]
 
     def get_artist_image(self, artist: str, quality: int = 0):
-        return self.client().artist(artist)["images"][-quality]["url"]
+        return self.artist(artist)["images"][-quality]["url"]
 
