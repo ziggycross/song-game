@@ -73,13 +73,13 @@ class SpotifyConnection(ExperimentalBaseConnection[spotipy.client.Spotify]):
     def client(self):
         return self._instance
 
-    def track(self, track_id: str, ttl: int = 3600):
+    def track(self, track_id: str, ttl: int | None = None):
         @cache_data(ttl=ttl)
         def _track(track_id):
             return self.client().track(track_id)
         return _track(track_id)
     
-    def artist(self, artist_id: str, ttl: int = 3600):
+    def artist(self, artist_id: str, ttl: int | None = None):
         @cache_data(ttl=ttl)
         def _artist(artist_id):
             return self.client().artist(artist_id)

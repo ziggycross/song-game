@@ -6,9 +6,6 @@ import pandas as pd
 
 import regex as re
 
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
-
 # SESSION VARIABLES
 max_lives = 3
 correct_answer_score = 100
@@ -53,7 +50,8 @@ charts = musicgen.aggregate(
     "musicgen", 
     [
         {"$group": {"_id": {"chart_name": "$chart_name", "am_genre": "$am_genre"}}}
-    ]
+    ],
+    ttl=None
     )
 
 charts = (pd.DataFrame(list(charts.index)))
@@ -79,7 +77,7 @@ match st.session_state.state:
                     {"$group": {"_id": "$mode", "count": {"$sum": 1}}},
                     {"$sort": {"count": -1}},
                     {"$limit": 10}
-                ]).reset_index()
+                ], ttl=100).reset_index()
 
             st.markdown(f"### Most popular:  \n"+"  \n".join([f"- {mode} *({count} plays)*" for i, (mode, count) in top_modes.iterrows()]))
 
@@ -110,7 +108,8 @@ match st.session_state.state:
             data = musicgen.query(
                 "musicgen",
                 filter={"chart_name": {"$in": list(filtered_charts["chart_name"])}},
-                projection={"song": 1, "artist": 1, "chart_name": 1, "id": 1}
+                projection={"song": 1, "artist": 1, "chart_name": 1, "id": 1},
+                ttl=None
                 )
             
             st.toast(f"Found {data.shape[0]} songs!")
@@ -214,7 +213,7 @@ match st.session_state.state:
                         {"$sort": {"score": -1}},
                         {"$limit": 15},
                         {"$project": {"name": 1, "score": 1}}
-                    ]).reset_index(drop=True)
+                    ], ttl=100).reset_index(drop=True)
                 leaderboard = list(leaderboard.iterrows())
             except KeyError:
                 leaderboard = []
@@ -239,7 +238,7 @@ match st.session_state.state:
                         {"$sort": {"score": -1}},
                         {"$limit": 15},
                         {"$project": {"score": 1, "mode": 1}}
-                    ]).reset_index(drop=True)
+                    ], ttl=100).reset_index(drop=True)
                 leaderboard = list(leaderboard.iterrows())
             except KeyError:
                 leaderboard = []
@@ -264,7 +263,7 @@ match st.session_state.state:
                         {"$sort": {"score": -1}},
                         {"$limit": 15},
                         {"$project": {"name": 1, "score": 1, "mode": 1}}
-                    ]).reset_index(drop=True)
+                    ], ttl=100).reset_index(drop=True)
                 leaderboard = list(leaderboard.iterrows())
             except KeyError:
                 leaderboard = []
@@ -287,7 +286,7 @@ match st.session_state.state:
                     {"$sort": {"score": -1}},
                     {"$limit": 15},
                     {"$project": {"name": 1, "score": 1, "mode": 1}}
-                ]).reset_index(drop=True)
+                ], ttl=100).reset_index(drop=True)
             leaderboard = list(leaderboard.iterrows())
             
             st.markdown(f"## Overall leaderboard")
