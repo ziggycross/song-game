@@ -55,6 +55,8 @@ charts = musicgen.aggregate(
         {"$group": {"_id": {"chart_name": "$chart_name", "am_genre": "$am_genre"}}}
     ]
     )
+
+charts = (pd.DataFrame(list(charts.index)))
 charts["decade"] = charts["chart_name"].str.extract(r"(\d{2})[sS]")
 decades = sorted(charts["decade"].unique(), key = year_format)
 
@@ -149,6 +151,8 @@ match st.session_state.state:
     case "game_over":
         base_score = st.session_state.score
 
+        mode = f"""{" + ".join(st.session_state.genres)} from {" to ".join(map(year_format, [st.session_state.decades[0], st.session_state.decades[-1]]))}"""
+
         genres_multiplier = genres_modifier*len(st.session_state.genres)
         genres_bonus = int(base_score*genres_multiplier)
         
@@ -161,7 +165,7 @@ match st.session_state.state:
             f"""
             # Final score: {final_score}
 
-            *{" + ".join(st.session_state.genres)} from {" to ".join(map(year_format, [st.session_state.decades[0], st.session_state.decades[-1]]))}*
+            *{mode}*
             
             **Base score:** `{base_score}`  
             
@@ -178,11 +182,33 @@ match st.session_state.state:
         musicgen.insert("leaderboard", {
             "name": st.session_state.name,
             "score": final_score,
-            "genres": st.session_state.genres,
-            "decades": st.session_state.decades,
+            "mode": mode,
             "time": datetime.now()
             })
+        
+        leaderboard = musicgen.aggregate(
+            "leaderboard",
+            [
+                {"$match": {"mode": mode}},
+                {"$sort": {"score": -1}},
+                {"$limit": 15},
+                {"$project": {"name": 1, "score": 1}}
+            ]).reset_index(drop=True)
+        
+        leaderboard = list(leaderboard.iterrows())
+        
+        st.markdown(f"## Leaderboard for '{mode}'")
 
+        leaderboard_cols = st.columns(3)
+        for i in range(3):
+            with leaderboard_cols[i]:
+                st.markdown("\n".join([
+                    f"{i+1}. **{name}**  \nScore: {score}"
+                    for i, (name, score)
+                    in leaderboard[5*i:5*(i+1)]
+                    ]))
+        
+        st.divider()
 
         if st.button("Play again", type="primary", use_container_width=True):
             st.session_state.state = "waiting"

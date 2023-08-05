@@ -46,9 +46,8 @@ class MongoDBConnection(ExperimentalBaseConnection[pymongo.collection.Collection
         @cache_data(ttl=ttl)
         def _aggregate(args_str: str, **kwargs):
             col = self.collection(collection)
-            agg = list(col.aggregate(pipeline, **kwargs))
-            df = pd.DataFrame([item["_id"] for item in agg])
-            return df
+            df = pd.DataFrame(list(col.aggregate(pipeline, **kwargs)))
+            return df.set_index("_id")
         
         args_str = f"{collection}{pipeline}{sorted(kwargs)}"
         return _aggregate(args_str, **kwargs)
