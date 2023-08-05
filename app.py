@@ -106,9 +106,9 @@ match st.session_state.state:
         selection = st.session_state.data.sample(3)
 
         song = selection["song"][0]
+        song_id = selection["id"][0]
         answer = selection["artist"][0]
         artists = selection[["artist", "id"]].sample(frac=1)
-
 
         sp = st.experimental_connection("spotify", SpotifyConnection)
 
@@ -117,13 +117,22 @@ match st.session_state.state:
 
             lives_bar = st.progress(lives/max_lives, f"Lives = {lives}")
 
+            st.divider()
+
             st.text(f"Who wrote '{song}'?")
+
+            preview = sp.get_song_preview(song_id)
+            if preview:
+                st.audio(sp.get_song_preview(song_id), format="audio/mp3")
+            else:
+                st.markdown("*(No preview available for this track)*")
+
             
             columns = st.columns(3)
             for i, (artist, track_id) in artists.reset_index(drop=True).iterrows():
                 with columns[i]:
                     artist_id = sp.get_song_artist(track_id)
-                    artist_image = sp.get_artist_image(artist_id, quality=2)
+                    artist_image = sp.get_artist_image(artist_id, quality=3)
                     st.image(artist_image)
                     st.button(artist, key=score+i+1, on_click=check, use_container_width=True, args=(artist, answer))
 

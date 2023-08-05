@@ -67,6 +67,9 @@ class SpotifyConnection(ExperimentalBaseConnection[spotipy.client.Spotify]):
     def get_song_artist(self, track: str):
         return self.client().track(f"spotify:track:{track}")["artists"][0]["id"]
 
+    def get_song_preview(self, track: str):
+        return self.client().track(f"spotify:track:{track}")["preview_url"]
+
     def get_artist_image(self, artist: str, quality: int = 0):
         return self.client().artist(artist)["images"][-quality]["url"]
 
