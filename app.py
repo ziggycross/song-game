@@ -1,5 +1,5 @@
 from connections import MongoDBConnection, SpotifyConnection
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import streamlit as st
 import pandas as pd
@@ -181,34 +181,110 @@ match st.session_state.state:
         
         st.divider()
 
-        musicgen.insert("leaderboard", {
-            "name": st.session_state.name,
-            "score": final_score,
-            "mode": mode,
-            "time": datetime.now()
-            })
+        if st.session_state.name:
+            musicgen.insert("leaderboard", {
+                "name": st.session_state.name,
+                "score": final_score,
+                "mode": mode,
+                "time": datetime.now()
+                })
         
-        leaderboard = musicgen.aggregate(
-            "leaderboard",
-            [
-                {"$match": {"mode": mode}},
-                {"$sort": {"score": -1}},
-                {"$limit": 15},
-                {"$project": {"name": 1, "score": 1}}
-            ]).reset_index(drop=True)
-        
-        leaderboard = list(leaderboard.iterrows())
-        
-        st.markdown(f"## Leaderboard for '{mode}'")
+        leaderboard_tabs = st.tabs([mode, "Personal", "Weekly", "All"])
 
-        leaderboard_cols = st.columns(3)
-        for i in range(3):
-            with leaderboard_cols[i]:
-                st.markdown("\n".join([
-                    f"{i+1}. **{name}**  \nScore: {score}"
-                    for i, (name, score)
-                    in leaderboard[5*i:5*(i+1)]
-                    ]))
+        with leaderboard_tabs[0]:
+
+            try:
+                leaderboard = musicgen.aggregate(
+                    "leaderboard", [
+                        {"$match": {"mode": mode}},
+                        {"$sort": {"score": -1}},
+                        {"$limit": 15},
+                        {"$project": {"name": 1, "score": 1}}
+                    ]).reset_index(drop=True)
+                leaderboard = list(leaderboard.iterrows())
+            except KeyError:
+                leaderboard = []
+    
+            st.markdown(f"## Leaderboard for '{mode}'")
+            leaderboard_cols = st.columns(3)
+            for i in range(3):
+                with leaderboard_cols[i]:
+                    st.markdown("\n".join([
+                        f"{i+1}. **{name}**  \nScore: {score}"
+                        for i, (name, score)
+                        in leaderboard[5*i:5*(i+1)]
+                        ]))
+        
+
+        with leaderboard_tabs[1]:
+
+            try:
+                leaderboard = musicgen.aggregate(
+                    "leaderboard", [
+                        {"$match": {"name": st.session_state.name}},
+                        {"$sort": {"score": -1}},
+                        {"$limit": 15},
+                        {"$project": {"score": 1, "mode": 1}}
+                    ]).reset_index(drop=True)
+                leaderboard = list(leaderboard.iterrows())
+            except KeyError:
+                leaderboard = []
+            
+            st.markdown(f"## Overall leaderboard")
+            leaderboard_cols = st.columns(3)
+            for i in range(3):
+                with leaderboard_cols[i]:
+                    st.markdown("\n".join([
+                        f"{i+1}. **Score: {score}**  \n*{mode}*"
+                        for i, (score, mode)
+                        in leaderboard[5*i:5*(i+1)]
+                        ]))
+                    
+
+        with leaderboard_tabs[2]:
+
+            try:
+                leaderboard = musicgen.aggregate(
+                    "leaderboard", [
+                        {"$match": {"time": {"$gte": datetime.now() - timedelta(days=7)}}},
+                        {"$sort": {"score": -1}},
+                        {"$limit": 15},
+                        {"$project": {"name": 1, "score": 1, "mode": 1}}
+                    ]).reset_index(drop=True)
+                leaderboard = list(leaderboard.iterrows())
+            except KeyError:
+                leaderboard = []
+            
+            st.markdown(f"## Overall leaderboard")
+            leaderboard_cols = st.columns(3)
+            for i in range(3):
+                with leaderboard_cols[i]:
+                    st.markdown("\n".join([
+                        f"{i+1}. **{name}**  \n*{mode}*  \nScore: {score}"
+                        for i, (name, score, mode)
+                        in leaderboard[5*i:5*(i+1)]
+                        ]))
+        
+
+        with leaderboard_tabs[3]:
+
+            leaderboard = musicgen.aggregate(
+                "leaderboard", [
+                    {"$sort": {"score": -1}},
+                    {"$limit": 15},
+                    {"$project": {"name": 1, "score": 1, "mode": 1}}
+                ]).reset_index(drop=True)
+            leaderboard = list(leaderboard.iterrows())
+            
+            st.markdown(f"## Overall leaderboard")
+            leaderboard_cols = st.columns(3)
+            for i in range(3):
+                with leaderboard_cols[i]:
+                    st.markdown("\n".join([
+                        f"{i+1}. **{name}**  \n*{mode}*  \nScore: {score}"
+                        for i, (name, score, mode)
+                        in leaderboard[5*i:5*(i+1)]
+                        ]))
         
         st.divider()
 
