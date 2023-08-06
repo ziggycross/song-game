@@ -1,14 +1,11 @@
 import pandas as pd
-
 import pymongo
+import spotipy
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
-
+from spotipy.oauth2 import SpotifyClientCredentials
 from streamlit.connections import ExperimentalBaseConnection
 from streamlit.runtime.caching import cache_data
-
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
 
 class MongoDBConnection(ExperimentalBaseConnection[pymongo.collection.Collection]):
 

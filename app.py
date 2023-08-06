@@ -1,10 +1,11 @@
-from connections import MongoDBConnection, SpotifyConnection
 from datetime import datetime, timedelta
 
-import streamlit as st
 import pandas as pd
-
 import regex as re
+import streamlit as st
+from streamlit import session_state as state
+
+from connections import MongoDBConnection, SpotifyConnection
 
 # SESSION VARIABLES
 max_lives = 3
@@ -12,51 +13,48 @@ correct_answer_score = 100
 genres_modifier = 0.25
 decades_modifier = 0.1
 
-if "state" not in st.session_state: st.session_state.state = "waiting"
-if "score" not in st.session_state: st.session_state.score = 0
-if "lives" not in st.session_state: st.session_state.lives = max_lives
+# - game state
+if "state" not in state: state.state = "waiting"
+if "score" not in state: state.score = 0
+if "lives" not in state: state.lives = max_lives
 
-if "genres" not in st.session_state: st.session_state.genres = None
-if "decades" not in st.session_state: st.session_state.decades = ["70", "80", "90", "00", "10"]
-if "data" not in st.session_state: st.session_state.data = None
+# - game settings
+if "genres" not in state: state.genres = None
+if "decades" not in state: state.decades = ["70", "80", "90", "00", "10"]
+if "data" not in state: state.data = None
 
-if "name" not in st.session_state: st.session_state.name = ""
+# - leaderboard settings
+if "name" not in state: state.name = ""
+if "submitted" not in state: state.submitted = True
 
 # FUNCTIONS
 def check(guess, correct):
     if guess == correct:
         st.toast("Correct!")
-        st.session_state.score += correct_answer_score
+        state.score += correct_answer_score
     
-    elif st.session_state.lives > 1:
+    elif state.lives > 1:
         st.toast("Incorrect!")
-        st.session_state.lives -= 1
+        state.lives -= 1
     
     else:
         st.balloons()
-        st.session_state.state = "game_over"
+        state.state = "game_over"
 
 year_format = lambda d: f"{19 if int(d[0]) > 5 else 20}{d}s"
-decade_regex = re.compile(r"(\d{2})[sS]")
+decade_regex = r"(\d{2})[sS]"
 
-# DATABASE
+# CONNECTIONS
 musicgen = st.experimental_connection(
     "mongodb",
     type=MongoDBConnection,
     database="musicgen"
     )
 
-charts = musicgen.aggregate(
-    "musicgen", 
-    [
-        {"$group": {"_id": {"chart_name": "$chart_name", "am_genre": "$am_genre"}}}
-    ],
-    ttl=None
+sp = st.experimental_connection(
+    "spotify",
+    type=SpotifyConnection
     )
-
-charts = (pd.DataFrame(list(charts.index)))
-charts["decade"] = charts["chart_name"].str.extract(r"(\d{2})[sS]")
-decades = sorted(charts["decade"].unique(), key = year_format)
 
 # GAME INTERFACE
 st.title("🎸 Streamlit Song Game ⚡")
@@ -66,11 +64,25 @@ Test your music knowledge in this song challenge!
 
 st.divider()
 
-match st.session_state.state:
+match state.state:
+    
     case "waiting":
         
+        # Retrieve available charts
+        charts = musicgen.aggregate(
+            "musicgen", 
+            [{"$group": {"_id": {"chart_name": "$chart_name", "am_genre": "$am_genre"}}}],
+            ttl=None
+            )
+        charts = pd.DataFrame(list(charts.index))
+        charts["decade"] = charts["chart_name"].str.extract(decade_regex)
+        
+        all_decades = sorted(charts["decade"].unique(), key = year_format)
+
+        # Layout
         presets, custom = st.columns(2)
 
+        # Get most popular modes from leaderboard
         with presets:
             top_modes = musicgen.aggregate(
                 "leaderboard", [
@@ -79,32 +91,43 @@ match st.session_state.state:
                     {"$limit": 10}
                 ], ttl=100).reset_index()
 
+            # TODO: Make options clickable to copy settings
             st.markdown(f"### Most popular:  \n"+"  \n".join([f"- {mode} *({count} plays)*" for i, (mode, count) in top_modes.iterrows()]))
 
-
+        # Allow customisation of gamemode
         with custom:
             # Get year range
-            start_year, end_year = st.select_slider("Decades", options=decades, value=(st.session_state.decades[0], st.session_state.decades[-1]), format_func=year_format)
-            selected_decades = decades[decades.index(start_year): decades.index(end_year)+1]
-            # Get genres available in those years
-            year_genres = charts.loc[charts["decade"].isin(selected_decades)]["am_genre"].unique()
-            if st.session_state.genres is not None:
-                st.session_state.genres = [g for g in st.session_state.genres if g in year_genres]
-            selected_genres = st.multiselect("Genres", sorted(year_genres), default=st.session_state.genres)
-            st.session_state.genres = selected_genres
+            start_year, end_year = st.select_slider(
+                "Decades",
+                options=all_decades,
+                value=(state.decades[0], state.decades[-1]),
+                format_func=year_format
+                )
+            selected_decades = all_decades[all_decades.index(start_year): all_decades.index(end_year)+1]
 
-            filtered_charts = charts.loc[(charts["am_genre"].isin(selected_genres)) & (charts["decade"].isin(selected_decades))]
+            # Get genres available in those years
+            available_genres = charts.loc[charts["decade"].isin(selected_decades)]["am_genre"].unique().tolist()
+            available_genres.sort()
+
+            # Genre selection
+            if state.genres:
+                state.genres = [g for g in state.genres if g in available_genres]
+            selected_genres = st.multiselect("Genres", sorted(available_genres), default=state.genres)
 
             st.markdown("Our dataset contains over 8000 songs! We recommend selecting just a few genres from a decade that you're familiar with.")
 
             st.divider()
 
-            name = st.text_input("Leaderboard name", placeholder="Leave blank to play anonymously", value=st.session_state.name)
+            name = st.text_input("Leaderboard name", placeholder="Leave blank to play anonymously", value=state.name)
 
         st.divider()
 
         if st.button("New game", type="primary", disabled=not selected_genres, use_container_width=True):        
             
+            # Select rows from charts
+            filtered_charts = charts.loc[(charts["am_genre"].isin(selected_genres)) & (charts["decade"].isin(selected_decades))]
+
+            # Get song data for selection
             data = musicgen.query(
                 "musicgen",
                 filter={"chart_name": {"$in": list(filtered_charts["chart_name"])}},
@@ -112,36 +135,38 @@ match st.session_state.state:
                 ttl=None
                 )
             
-            st.toast(f"Found {data.shape[0]} songs!")
-            st.session_state.genres = selected_genres
-            st.session_state.decades = selected_decades
-            st.session_state.data = data
+            # Save settings to state
+            state.decades = selected_decades
+            state.genres = selected_genres
+            state.data = data
 
-            st.session_state.state = "playing"
-            st.session_state.score = 0
-            st.session_state.lives = max_lives
+            state.state = "playing"
+            state.score = 0
+            state.lives = max_lives
             
-            st.session_state.name = name
+            state.name = name.strip()
+            state.submitted = False
             
             st.experimental_rerun()
 
     case "playing":
-        question_box = st.empty()
-        lives = st.session_state.lives
-        score = st.session_state.score
-
-        selection = st.session_state.data.sample(3)
-
-        sp = st.experimental_connection("spotify", SpotifyConnection)
         
+        # Select three rows
+        selection = state.data.sample(3)
+        
+        # Select correct answer from sample
         song = selection["song"][0]
         song_id = selection["id"][0]
         answer = selection["artist"][0]
-        artists = selection[["artist", "id"]].sample(frac=1)
-        with question_box.container():
-            st.subheader(f"Score = {score}")
 
-            lives_bar = st.progress(lives/max_lives, f"Lives = {lives}")
+        # Get name and IDs for all options
+        artists = selection[["artist", "id"]].sample(frac=1)
+        
+        question_box = st.empty()
+        with question_box.container():
+            st.subheader(f"Score = {state.score}")
+
+            lives_bar = st.progress(state.lives/max_lives, f"Lives = {state.lives}")
 
             st.divider()
 
@@ -152,8 +177,8 @@ match st.session_state.state:
                 st.audio(preview, format="audio/mp3")
             else:
                 st.markdown("*(No preview available for this track)*")
-
             
+            # Options for artists
             columns = st.columns(3)
             for i, (artist, track_id) in artists.reset_index(drop=True).iterrows():
                 artist_id = sp.get_song_artist(track_id)
@@ -161,17 +186,20 @@ match st.session_state.state:
 
                 with columns[i]:
                     st.image(artist_image)
-                    st.button(artist, key=score+i+1, on_click=check, use_container_width=True, args=(artist, answer))
+                    st.button(artist, key=state.score+i+1, on_click=check, use_container_width=True, args=(artist, answer))
 
     case "game_over":
-        base_score = st.session_state.score
+        
+        # Create title for game mode (decade and genre settings)
+        mode = f"""{" + ".join(state.genres)} from {" to ".join(map(year_format, [state.decades[0], state.decades[-1]]))}"""
+        
+        # Calculate bonuses and final score
+        base_score = state.score
 
-        mode = f"""{" + ".join(st.session_state.genres)} from {" to ".join(map(year_format, [st.session_state.decades[0], st.session_state.decades[-1]]))}"""
-
-        genres_multiplier = genres_modifier*len(st.session_state.genres)
+        genres_multiplier = genres_modifier*len(state.genres)
         genres_bonus = int(base_score*genres_multiplier)
         
-        decades_multiplier = decades_modifier*len(st.session_state.decades)
+        decades_multiplier = decades_modifier*len(state.decades)
         decades_bonus = int(base_score*decades_multiplier)
 
         final_score = base_score+genres_bonus+decades_bonus
@@ -194,16 +222,20 @@ match st.session_state.state:
         
         st.divider()
 
-        if st.session_state.name:
+        # Send score to leaderboard
+        if state.name and not state.submitted:
+            state.submitted = True
             musicgen.insert("leaderboard", {
-                "name": st.session_state.name,
+                "name": state.name,
                 "score": final_score,
                 "mode": mode,
                 "time": datetime.now()
                 })
         
+        # Leaderboard tabs
         lb_mode, lb_personal, lb_weekly, lb_all = st.tabs([mode, "Personal", "Weekly", "All"])
 
+        # Leaderboard matching current settings
         with lb_mode:
 
             try:
@@ -228,13 +260,13 @@ match st.session_state.state:
                         in leaderboard[5*i:5*(i+1)]
                         ]))
         
-
+        # Leadboard matching current username
         with lb_personal:
 
             try:
                 leaderboard = musicgen.aggregate(
                     "leaderboard", [
-                        {"$match": {"name": st.session_state.name}},
+                        {"$match": {"name": state.name}},
                         {"$sort": {"score": -1}},
                         {"$limit": 15},
                         {"$project": {"score": 1, "mode": 1}}
@@ -253,7 +285,7 @@ match st.session_state.state:
                         in leaderboard[5*i:5*(i+1)]
                         ]))
                     
-
+        # Leaderboard showing the last 7 days
         with lb_weekly:
 
             try:
@@ -278,7 +310,7 @@ match st.session_state.state:
                         in leaderboard[5*i:5*(i+1)]
                         ]))
         
-
+        # Leaderboard showing all time
         with lb_all:
 
             leaderboard = musicgen.aggregate(
@@ -302,5 +334,5 @@ match st.session_state.state:
         st.divider()
 
         if st.button("Play again", type="primary", use_container_width=True):
-            st.session_state.state = "waiting"
+            state.state = "waiting"
             st.experimental_rerun()
